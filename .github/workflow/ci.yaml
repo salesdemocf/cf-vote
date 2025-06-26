@@ -64,7 +64,7 @@ jobs:
       with:
         # - Codefresh Config -
         # Name of runtime to implement the enrichment
-        CF_RUNTIME_NAME: 'pov-codefresh-istio-runtime'
+        CF_RUNTIME_NAME: 'poc-demo-1'
         # Codefresh API key !! Committing a plain text token is a security risk. We highly recommend using an encrypted secrets. !!
         # Documentation - https://docs.github.com/en/actions/security-guides/encrypted-secrets
         CF_API_KEY: '${{ secrets.CF_API_KEY }}'
