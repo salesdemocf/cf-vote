@@ -11,7 +11,7 @@ env:
   CF_JIRA_HOST_URL: 'https://cf-demo-jira.atlassian.net'
   CF_JIRA_EMAIL: 'dustin@codefresh.io'
   CF_JIRA_PROJECT_PREFIX: 'SDD'
-  CF_JIRA_MESSAGE: 'pr-${{ github.event.number }}'
+  CF_JIRA_MESSAGE: '${{ github.event.pull_request.head.ref }}'
 
 jobs:
   build-and-push-image:
