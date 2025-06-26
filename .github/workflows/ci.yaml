@@ -1,0 +1,94 @@
+name: Docker Image CI
+
+on: 
+  pull_request:
+    types: [opened, synchronize]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
+  CF_JIRA_HOST_URL: 'https://cf-demo-jira.atlassian.net'
+  CF_JIRA_EMAIL: 'dustin@codefresh.io'
+  CF_JIRA_PROJECT_PREFIX: 'SDD'
+  CF_JIRA_MESSAGE: '${{ github.event.pull_request.head.ref }}'
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  report-image:
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Report Image to Codefresh
+        uses: codefresh-io/codefresh-report-image@latest
+        with:
+          # - Codefresh Config -
+          # Name of runtime to implement the enrichment
+          CF_RUNTIME_NAME: 'poc-demo-1'
+          # Codefresh API key !! Committing a plain text token is a security risk. We highly recommend using an encrypted secrets. !!
+          # Documentation - https://docs.github.com/en/actions/security-guides/encrypted-secrets
+          CF_API_KEY: '${{ secrets.CF_API_KEY }}'
+          # Image path to enrich, full image FQDN
+          CF_IMAGE: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          # - GHCR Config -
+          CF_REGISTRY_DOMAIN: '${{ env.REGISTRY }}'
+          CF_REGISTRY_USERNAME: '${{ github.actor }}'
+          CF_REGISTRY_PASSWORD: '${{ secrets.GITHUB_TOKEN }}'
+          # - GitHub Config -
+          CF_GIT_BRANCH: '${{ github.event.pull_request.head.ref }}'
+          CF_GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          # - JIRA Config -
+          CF_JIRA_HOST_URL: '${{ env.CF_JIRA_HOST_URL }}'
+          CF_JIRA_EMAIL: '${{ env.CF_JIRA_EMAIL }}'
+          # JIRA API key !! Committing a plain text token is a security risk. We highly recommend using an encrypted secrets. !!
+          # Documentation - https://docs.github.com/en/actions/security-guides/encrypted-secrets
+          CF_JIRA_API_TOKEN: '${{ secrets.CF_JIRA_API_TOKEN }}'
+          # JIRA Project Prefix for JIRA Issues
+          CF_JIRA_PROJECT_PREFIX: '${{ env.CF_JIRA_PROJECT_PREFIX }}'
+          # Location of JIRA Issue information Project Key + Issue ID
+          CF_JIRA_MESSAGE: '${{ env.CF_JIRA_MESSAGE }}'
+          # - Additional GitHub Workflow Information -
+          CF_LOGS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CF_WORKFLOW_NAME: ${{ github.workflow }}
+          CF_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
