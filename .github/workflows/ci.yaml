@@ -55,7 +55,8 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-  report-image:    
+  report-image:
+    needs: build-and-push-image
     runs-on: ubuntu-latest
 
     steps:
